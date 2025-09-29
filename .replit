@@ -35,67 +35,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 9502
-externalPort = 3002
-exposeLocalhost = true
-
-[[ports]]
-localPort = 9503
-externalPort = 5000
-exposeLocalhost = true
-
-[[ports]]
-localPort = 9504
-externalPort = 6000
-exposeLocalhost = true
-
-[[ports]]
-localPort = 33787
-externalPort = 3003
-
-[[ports]]
-localPort = 34789
-externalPort = 4200
-
-[[ports]]
-localPort = 39613
-externalPort = 3001
-
-[[ports]]
-localPort = 40929
-externalPort = 5173
-
-[[ports]]
-localPort = 41741
-externalPort = 8008
-
-[[ports]]
-localPort = 42315
-externalPort = 8099
-
-[[ports]]
-localPort = 43159
+localPort = 39523
 externalPort = 3000
-
-[[ports]]
-localPort = 44647
-externalPort = 8080
-
-[[ports]]
-localPort = 45145
-externalPort = 6800
-
-[[ports]]
-localPort = 45303
-externalPort = 9000
-
-[[ports]]
-localPort = 45727
-externalPort = 8000
-
-[[ports]]
-localPort = 46669
-externalPort = 8081
 
 [deployment]
 deploymentTarget = "vm"
