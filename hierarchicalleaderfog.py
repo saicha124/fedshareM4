@@ -8,7 +8,6 @@ import numpy as np
 from flask import Flask, request
 
 import flcommon
-import time_logger
 from config import LeaderFogConfig
 from shamir_secret_sharing import ShamirSecretSharing
 
@@ -121,8 +120,6 @@ def recv_thread(fog_shares, data, remote_addr):
     global total_download_cost
     total_download_cost += len(data)
     
-    time_logger.lead_server_received()
-    
     print(f"[DOWNLOAD] Aggregated shares from fog node {remote_addr} received. size: {len(data)}")
     
     try:
@@ -136,8 +133,6 @@ def recv_thread(fog_shares, data, remote_addr):
         # Check if we have received from all fog nodes
         if len(fog_shares) < config.num_servers:
             return
-        
-        time_logger.lead_server_start()
         
         # Reconstruct and aggregate final global model
         global_weights = reconstruct_and_aggregate_global_model(fog_shares)
@@ -161,8 +156,6 @@ def recv_thread(fog_shares, data, remote_addr):
         print(f"👥 Clients served: {config.number_of_clients}")
         print(f"🔒 Privacy-preserving: Differential Privacy + Secret Sharing")
         print("=" * 80)
-        
-        time_logger.lead_server_idle()
         
     except Exception as e:
         print(f"[ERROR] Failed to process shares from fog node {remote_addr}: {e}")

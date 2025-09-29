@@ -12,7 +12,6 @@ import tensorflow as tf
 
 import flcommon
 import mnistcommon
-import time_logger
 from config import HierarchicalClientConfig
 from differential_privacy import DifferentialPrivacy
 from shamir_secret_sharing import ShamirSecretSharing
@@ -150,7 +149,6 @@ def start_next_round(data):
     Args:
         data: Global model weights from previous round (if any)
     """
-    time_logger.client_start()
     
     # Load local dataset
     x_train, y_train = client_datasets[config.client_index][0], client_datasets[config.client_index][1]
@@ -215,8 +213,6 @@ def start_next_round(data):
     print(f"********************** Round {training_round} completed **********************")
     training_round += 1
     print("Waiting to receive response from leader fog node...")
-    
-    time_logger.client_idle()
 
 
 @api.route('/recv', methods=['POST'])
@@ -248,9 +244,6 @@ def recv_thread(data):
         print(f"Privacy spent so far: ε={final_epsilon:.4f}, δ={final_delta:.6f}")  # For UI parsing
         print("=" * 80)
         
-        time_logger.finish_training()
-        time_logger.print_result()
-        
         print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}")
         print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}")
         
@@ -280,7 +273,6 @@ def health_check():
 @api.route('/start', methods=['GET'])
 def start():
     """Start federated learning process"""
-    time_logger.start_training()
     print(f"[START] Hierarchical FL Client {config.client_index} starting...")
     print(f"[PRIVACY] Differential privacy enabled (ε={config.dp_epsilon}, δ={config.dp_delta})")
     print(f"[SECRET] Shamir secret sharing enabled (threshold={config.secret_threshold}/{config.total_shares})")

@@ -9,7 +9,6 @@ import requests
 from flask import Flask, request
 from requests_toolbelt.adapters import source
 
-import time_logger
 from config import FogNodeConfig
 from shamir_secret_sharing import ShamirSecretSharing
 
@@ -116,7 +115,6 @@ def recv_thread(client_shares, data, remote_addr):
         data: Serialized share data
         remote_addr: Client address
     """
-    time_logger.server_received()
     
     global total_download_cost
     total_download_cost += len(data)
@@ -135,8 +133,6 @@ def recv_thread(client_shares, data, remote_addr):
         if len(client_shares) < config.number_of_clients:
             return
         
-        time_logger.server_start()
-        
         # Aggregate shares from all clients
         aggregated_shares = aggregate_shares(client_shares)
         
@@ -153,8 +149,6 @@ def recv_thread(client_shares, data, remote_addr):
         print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}")
         
         print(f"********************** [FOG] Round {training_round} completed **********************")
-        
-        time_logger.server_idle()
         
     except Exception as e:
         print(f"[ERROR] Failed to process share from {remote_addr}: {e}")
