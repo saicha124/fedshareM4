@@ -63,7 +63,7 @@ wait_for_service() {
     echo "⏳ Waiting for $service_name to be ready on $host:$port..."
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -s -f "http://$host:$port/" > /dev/null 2>&1; then
+        if curl -s "http://$host:$port/health" > /dev/null 2>&1 || curl -s "http://$host:$port/" > /dev/null 2>&1; then
             echo "✅ $service_name is ready"
             return 0
         fi

@@ -155,6 +155,7 @@ def recv_thread(client_shares, data, remote_addr):
 
 
 @api.route('/', methods=['GET'])
+@api.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return {

@@ -256,6 +256,7 @@ def recv_thread(data):
 
 
 @api.route('/', methods=['GET'])
+@api.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return {
