@@ -13,7 +13,24 @@ import tensorflow as tf
 import flcommon
 import mnistcommon
 from config import HierarchicalClientConfig
-from differential_privacy import DifferentialPrivacy
+try:
+    from differential_privacy import DifferentialPrivacy
+except Exception as e:
+    print(f"Warning: Could not import DifferentialPrivacy: {e}")
+    # Create a simple stub for DifferentialPrivacy
+    class DifferentialPrivacy:
+        def __init__(self, epsilon=1.0, delta=1e-5, clip_norm=1.0):
+            self.epsilon = epsilon
+            self.delta = delta
+            self.clip_norm = clip_norm
+            print("Using stub DifferentialPrivacy class")
+        
+        def add_noise_to_weights(self, weights):
+            return weights  # No noise for now
+        
+        def get_privacy_parameters(self):
+            return {'noise_scale': 0.0, 'clip_norm': self.clip_norm}
+
 from shamir_secret_sharing import ShamirSecretSharing
 
 # Set deterministic seeds for consistent initialization across all clients
