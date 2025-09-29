@@ -129,8 +129,10 @@ def send_to_fog_node(fog_id, shares, round_num):
         serialized_shares = pickle.dumps(shares)
         total_upload_cost += len(serialized_shares)
         
-        # Send to fog node
-        url = f'http://{config.server_address}:{config.fog_base_port + fog_id}/recv'
+        # Send to fog node (map Shamir share ID to fog node index: 1,2,3 → 0,1,2)
+        fog_node_index = fog_id - 1
+        url = f'http://{config.server_address}:{config.fog_base_port + fog_node_index}/recv'
+        print(f"[DEBUG] Mapping share {fog_id} → fog node {fog_node_index} (port {config.fog_base_port + fog_node_index})")
         s = requests.Session()
         new_source = source.SourceAddressAdapter(flcommon.get_ip(config))
         s.mount('http://', new_source)
