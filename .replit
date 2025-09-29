@@ -1,4 +1,4 @@
-modules = ["python-3.12", "bash"]
+modules = ["bash", "python-3.11"]
 [agent]
 expertMode = true
 
@@ -99,4 +99,4 @@ externalPort = 8081
 
 [deployment]
 deploymentTarget = "vm"
-run = ["python3", "-u", "enhanced_app.py"]
+run = ["python", "-u", "enhanced_app.py"]
