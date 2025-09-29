@@ -160,7 +160,7 @@ def start_next_round(data):
     global training_round
     
     # Load global weights from previous round
-    if training_round != 0:
+    if training_round != 0 and isinstance(data, bytes):
         global round_weight
         round_weight = pickle.loads(data)
         model.set_weights(round_weight)
