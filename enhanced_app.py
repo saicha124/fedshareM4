@@ -31,12 +31,14 @@ def parse_logs_for_progress(algorithm):
     # Generate dynamic log directory names based on current config
     if algorithm == 'fedavg':
         log_dir_name = f"fedavg-mnist-client-{total_clients}"
+    elif algorithm == 'hierarchical':
+        log_dir_name = f"hierarchical-mnist-client-{total_clients}-fog-{num_servers}"
     else:
         log_dir_name = f"{algorithm}-mnist-client-{total_clients}-server-{num_servers}"
     
     log_dir = f"logs/{log_dir_name}"
     
-    if algorithm not in ['fedshare', 'fedavg', 'scotch']:
+    if algorithm not in ['fedshare', 'fedavg', 'scotch', 'hierarchical']:
         return {}
         
     progress = {
@@ -55,22 +57,45 @@ def parse_logs_for_progress(algorithm):
     
     # Check client logs for training progress
     for i in range(total_clients):
-        client_log = f"{log_dir}/{algorithm}client-{i}.log"
+        # Handle different log naming conventions for hierarchical algorithm
+        if algorithm == 'hierarchical':
+            client_log = f"{log_dir}/hierarchicalclient-{i}.log"
+        else:
+            client_log = f"{log_dir}/{algorithm}client-{i}.log"
+            
         if os.path.exists(client_log):
             progress['clients_started'] += 1
             try:
                 with open(client_log, 'r') as f:
                     content = f.read()
                     
-                # Extract round information
-                rounds = re.findall(r'Round: (\d+)/(\d+)', content)
-                if rounds:
-                    latest_round = max([int(r[0]) for r in rounds])
-                    progress['current_round'] = max(progress['current_round'], latest_round)
+                # Extract round information (hierarchical uses different format)
+                if algorithm == 'hierarchical':
+                    # Look for "Round: X/Y" pattern in hierarchical logs
+                    rounds = re.findall(r'Round: (\d+)/(\d+)', content)
+                    # Also look for privacy accounting rounds
+                    privacy_rounds = re.findall(r'Training Round: (\d+)', content)
+                    if rounds:
+                        latest_round = max([int(r[0]) for r in rounds])
+                        progress['current_round'] = max(progress['current_round'], latest_round)
+                    elif privacy_rounds:
+                        latest_round = max([int(r) for r in privacy_rounds])
+                        progress['current_round'] = max(progress['current_round'], latest_round)
+                else:
+                    rounds = re.findall(r'Round: (\d+)/(\d+)', content)
+                    if rounds:
+                        latest_round = max([int(r[0]) for r in rounds])
+                        progress['current_round'] = max(progress['current_round'], latest_round)
                 
                 # Extract training completion
                 completed_rounds = content.count('completed')
                 training_finished = content.count('Training finished')
+                
+                # For hierarchical, also check for privacy-specific completion markers
+                if algorithm == 'hierarchical':
+                    privacy_completed = content.count('Privacy spent so far')
+                    if privacy_completed > 0:
+                        completed_rounds = max(completed_rounds, privacy_completed)
                 
                 # If training is finished, set to 100%, otherwise calculate based on actual total rounds
                 if training_finished > 0:
@@ -95,6 +120,15 @@ def parse_logs_for_progress(algorithm):
                     progress['metrics']['global_loss'] = float(global_loss_matches[-1])
                 if global_accuracy_matches:
                     progress['metrics']['global_accuracy'] = float(global_accuracy_matches[-1])
+                
+                # Extract privacy metrics for hierarchical algorithm
+                if algorithm == 'hierarchical':
+                    epsilon_matches = re.findall(r'ε=([0-9]*\.?[0-9]+)', content)
+                    delta_matches = re.findall(r'δ=([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)', content)
+                    if epsilon_matches:
+                        progress['metrics']['privacy_epsilon'] = float(epsilon_matches[-1])
+                    if delta_matches:
+                        progress['metrics']['privacy_delta'] = float(delta_matches[-1])
                     
             except Exception as e:
                 print(f"Error reading client log {client_log}: {e}")
@@ -945,6 +979,41 @@ class EnhancedFedShareHandler(http.server.SimpleHTTPRequestHandler):
             </div>
         </div>
 
+        <div class="algorithm-section" style="background: linear-gradient(145deg, #fff3cd, #ffffff); border-color: #ffc107;">
+            <div class="algorithm-title">
+                <span class="emoji">🏗️</span>Hierarchical FL Algorithm
+            </div>
+            <div class="algorithm-description">
+                <strong>🔐 Enhanced Privacy:</strong> Three-tier federated learning with differential privacy and Shamir secret sharing.
+                <br><strong>🌫️ Fog Computing:</strong> Hierarchical architecture with fog nodes for scalable aggregation.
+                <br><strong>🛡️ Security:</strong> Byzantine fault tolerance with rotating validator committees.
+            </div>
+            <div class="controls">
+                <button id="hierarchical-run-btn" class="btn" onclick="runAlgorithm('hierarchical')" 
+                        style="background: linear-gradient(145deg, #ffc107, #ffb300);">
+                    Run Hierarchical FL
+                </button>
+                <a href="/logs/hierarchical" class="btn btn-success">View Logs</a>
+            </div>
+            <div id="hierarchical-progress" class="progress-container">
+                <div class="progress-bar">
+                    <div id="hierarchical-progress-fill" class="progress-fill">
+                        <div id="hierarchical-progress-text" class="progress-text">0%</div>
+                    </div>
+                </div>
+                <div id="hierarchical-status"></div>
+                <div id="hierarchical-metrics"></div>
+                <div id="hierarchical-privacy" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 0.9em;">
+                    <strong>🔐 Privacy Features:</strong>
+                    <div style="margin-top: 5px;">
+                        <span style="color: #28a745;">• Differential Privacy:</span> ε=1.0, δ=1e-5<br>
+                        <span style="color: #17a2b8;">• Shamir Secret Sharing:</span> 2/3 threshold<br>
+                        <span style="color: #6c757d;">• Three-Tier Architecture:</span> Clients → Fog Nodes → Leader
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="info-box">
             <strong>📋 Training Configuration:</strong>
             <ul style="margin: 10px 0;">
@@ -978,7 +1047,7 @@ class EnhancedFedShareHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(progress).encode())
     
     def run_algorithm(self, algorithm):
-        if algorithm not in ['fedshare', 'fedavg', 'scotch']:
+        if algorithm not in ['fedshare', 'fedavg', 'scotch', 'hierarchical']:
             self.send_error(400, "Invalid algorithm")
             return
         
@@ -996,6 +1065,8 @@ class EnhancedFedShareHandler(http.server.SimpleHTTPRequestHandler):
         
         if algorithm == 'fedavg':
             log_dir_name = f"fedavg-mnist-client-{total_clients}"
+        elif algorithm == 'hierarchical':
+            log_dir_name = f"hierarchical-mnist-client-{total_clients}-fog-{num_servers}"
         else:
             log_dir_name = f"{algorithm}-mnist-client-{total_clients}-server-{num_servers}"
         
@@ -1011,7 +1082,8 @@ class EnhancedFedShareHandler(http.server.SimpleHTTPRequestHandler):
                 # For other algorithms, use the original shell script approach
                 script_map = {
                     'fedavg': './start-fedavg.sh', 
-                    'scotch': './start-scotch.sh'
+                    'scotch': './start-scotch.sh',
+                    'hierarchical': './start-hierarchical.sh'
                 }
                 script_path = script_map[algorithm]
                 print(f"Starting {algorithm}: {script_path}")

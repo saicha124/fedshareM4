@@ -41,3 +41,39 @@ class LeadConfig(Config):
 class FedAvgServerConfig(Config):
     def __init__(self):
         pass
+
+
+class HierarchicalConfig(Config):
+    def __init__(self):
+        # Differential Privacy parameters
+        self.dp_epsilon = 1.0  # Privacy budget
+        self.dp_delta = 1e-5   # Privacy parameter
+        self.dp_clip_norm = 1.0  # Gradient clipping norm
+        
+        # Shamir Secret Sharing parameters
+        self.secret_threshold = 2  # Minimum shares needed to reconstruct secret
+        self.total_shares = self.num_servers  # Total number of shares
+        
+        # Three-tier architecture ports
+        self.fog_base_port = 4500  # Base port for fog nodes
+        self.leader_fog_port = 4000  # Port for leader fog node
+        
+        # Validator committee settings
+        self.validator_committee_size = min(3, self.number_of_clients)  # Rotating validator committee size
+
+
+class HierarchicalClientConfig(HierarchicalConfig):
+    def __init__(self, client_index):
+        super().__init__()
+        self.client_index = client_index
+
+
+class FogNodeConfig(HierarchicalConfig):
+    def __init__(self, fog_index):
+        super().__init__()
+        self.fog_index = fog_index
+
+
+class LeaderFogConfig(HierarchicalConfig):
+    def __init__(self):
+        super().__init__()
