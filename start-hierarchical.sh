@@ -33,7 +33,7 @@ export TF_NUM_INTEROP_THREADS=1
 export TF_CPP_MIN_LOG_LEVEL=2
 
 # Ensure Python packages are available
-export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages:$PYTHONPATH"
+export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
 export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH"
 
 # Create logs directory if it doesn't exist
@@ -85,7 +85,7 @@ start_service() {
     local log_file=$4
     
     echo "🚀 Starting $service_name $index..."
-    nohup /nix/store/nsfnmlzik7al3j8z5xadbmzm4zm0l98r-python-wrapped-0.1.0/bin/python3 "$script" "$index" > "$log_file" 2>&1 &
+    nohup /home/runner/workspace/.pythonlibs/bin/python3 "$script" "$index" > "$log_file" 2>&1 &
     local pid=$!
     echo "   PID: $pid"
     

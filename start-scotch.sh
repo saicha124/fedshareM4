@@ -13,10 +13,12 @@ export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=1
 export TF_NUM_INTRAOP_THREADS=1
 export TF_NUM_INTEROP_THREADS=1
+export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
+PYTHON=/home/runner/workspace/.pythonlibs/bin/python3
 
 # Read configuration from config.py
-N=$(python3 -c "from config import Config; print(Config.num_servers)")
-M=$(python3 -c "from config import Config; print(Config.number_of_clients)")
+N=$($PYTHON -c "from config import Config; print(Config.num_servers)")
+M=$($PYTHON -c "from config import Config; print(Config.number_of_clients)")
 
 echo "Configuration: $M clients, $N servers"
 
@@ -24,19 +26,17 @@ DEST_DIRECTORY="scotch-mnist-client-${M}-server-${N}"
 echo "$DEST_DIRECTORY"
 mkdir -p logs/${DEST_DIRECTORY}
 
-# Use system Python that we know works
-PYTHON_EXEC="$(command -v python3)"
-echo "Using Python: $PYTHON_EXEC"
+echo "Using Python: $PYTHON"
 
 # Start logger server with PID tracking
-nohup $PYTHON_EXEC logger_server.py &>logs/${DEST_DIRECTORY}/logger_server.log &
+nohup $PYTHON logger_server.py &>logs/${DEST_DIRECTORY}/logger_server.log &
 echo $! > logs/${DEST_DIRECTORY}/logger_server.pid
 sleep 3
 
 # Start scotch servers with validation
 for ((SERVER = 0; SERVER < N; SERVER++)); do
   echo "Starting server ${SERVER}"
-  nohup $PYTHON_EXEC scotchserver.py "${SERVER}" &>logs/${DEST_DIRECTORY}/scotchserver-${SERVER}.log &
+  nohup $PYTHON scotchserver.py "${SERVER}" &>logs/${DEST_DIRECTORY}/scotchserver-${SERVER}.log &
   echo $! > logs/${DEST_DIRECTORY}/scotchserver-${SERVER}.pid
   sleep 3
   
@@ -53,7 +53,7 @@ done
 # Start scotch clients after servers are ready
 for ((CLIENT = 0; CLIENT < M; CLIENT++)); do
   echo "Starting client ${CLIENT}"
-  nohup $PYTHON_EXEC scotchclient.py "${CLIENT}" &>logs/${DEST_DIRECTORY}/scotchclient-${CLIENT}.log &
+  nohup $PYTHON scotchclient.py "${CLIENT}" &>logs/${DEST_DIRECTORY}/scotchclient-${CLIENT}.log &
   echo $! > logs/${DEST_DIRECTORY}/scotchclient-${CLIENT}.pid
   sleep 3
   

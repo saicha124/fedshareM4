@@ -5,7 +5,8 @@ export OMP_NUM_THREADS=1
 export TF_NUM_INTRAOP_THREADS=1
 export TF_NUM_INTEROP_THREADS=1
 
-PYTHON=$(command -v python)
+PYTHON=/home/runner/workspace/.pythonlibs/bin/python3
+export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
 # Read configuration from config.py
 M=$($PYTHON -c "from config import Config; print(Config.number_of_clients)")
 
