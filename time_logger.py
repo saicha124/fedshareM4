@@ -74,4 +74,8 @@ def print_result():
     post_print(url)
 
 def post_print(url):
-    print(requests.post(url).json())
+    try:
+        response = requests.post(url, timeout=1)
+        print(response.json())
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.RequestException):
+        pass
