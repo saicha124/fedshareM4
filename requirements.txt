@@ -34,3 +34,12 @@ requests
 requests-toolbelt
 scikit-learn
 tensorflow
+emnist
+flask
+keras
+numpy
+pandas
+requests
+requests-toolbelt
+scikit-learn
+tensorflow
