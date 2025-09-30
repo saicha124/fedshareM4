@@ -46,6 +46,8 @@ Access the web interface at the main URL. Click buttons to run algorithms direct
 - **Python Interpreter**: Standardized Python executable usage in shell scripts
 - **Process Coordination**: Improved startup delays and error handling in start-fedavg.sh
 - **Health Check Endpoints**: Added root "/" endpoints to all federated learning clients (fedshareclient.py, fedavgclient.py, scotchclient.py) to resolve 404 errors during health checks that were causing algorithms to get stuck at 25%
+- **Hierarchical FL with Differential Privacy**: Enabled full differential privacy (ε=1.0, δ=1e-5) and Shamir secret sharing in hierarchical federated learning algorithm (2025-09-30)
+- **DifferentialPrivacy Stub Fix**: Added missing compute_privacy_spent method to stub class in hierarchicalclient.py for proper privacy accounting
 
 ## Current Status (2025-09-30)
 - ✅ **Fresh GitHub clone successfully imported and configured for Replit**

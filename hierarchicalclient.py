@@ -30,6 +30,13 @@ except Exception as e:
         
         def get_privacy_parameters(self):
             return {'noise_scale': 0.0, 'clip_norm': self.clip_norm}
+        
+        def compute_privacy_spent(self, num_queries):
+            """Compute total privacy spent after num_queries"""
+            import numpy as np
+            total_epsilon = self.epsilon * np.sqrt(2 * num_queries * np.log(1 / self.delta))
+            total_delta = num_queries * self.delta
+            return min(total_epsilon, self.epsilon * num_queries), min(total_delta, 1.0)
 
 from shamir_secret_sharing import ShamirSecretSharing
 
