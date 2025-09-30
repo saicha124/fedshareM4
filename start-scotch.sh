@@ -13,8 +13,7 @@ export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=1
 export TF_NUM_INTRAOP_THREADS=1
 export TF_NUM_INTEROP_THREADS=1
-export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
-PYTHON=/home/runner/workspace/.pythonlibs/bin/python3
+PYTHON=python3
 
 # Read configuration from config.py
 N=$($PYTHON -c "from config import Config; print(Config.num_servers)")

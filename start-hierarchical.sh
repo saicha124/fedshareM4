@@ -32,9 +32,7 @@ export TF_NUM_INTRAOP_THREADS=1
 export TF_NUM_INTEROP_THREADS=1
 export TF_CPP_MIN_LOG_LEVEL=2
 
-# Ensure Python packages are available
-export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
-export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH"
+# Python is already configured via Replit modules
 
 # Create logs directory dynamically based on configuration
 N_CLIENTS=$(python3 -c "from config import Config; print(Config.number_of_clients)")
