@@ -87,7 +87,7 @@ start_service() {
     echo "🚀 Starting $service_name $index..."
     # Use full hierarchical client with differential privacy and secret sharing enabled
     # Note: differential privacy is now enabled (epsilon=1.0, delta=1e-5)
-    nohup /home/runner/workspace/.pythonlibs/bin/python3 "$script" "$index" > "$log_file" 2>&1 &
+    nohup python3 "$script" "$index" > "$log_file" 2>&1 &
     local pid=$!
     echo "   PID: $pid"
     
