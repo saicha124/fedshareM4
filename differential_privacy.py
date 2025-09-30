@@ -72,12 +72,20 @@ class DifferentialPrivacy:
         Returns:
             List of noisy weight arrays
         """
-        noise_scale = self._compute_noise_scale()
+        # Compute base noise scale for gradients
+        base_noise_scale = self._compute_noise_scale()
+        
         noisy_weights = []
         
         for weight_array in weights:
+            # Scale noise relative to weight magnitude to avoid destroying the model
+            # Use a much smaller noise scale for weights (0.1% of base noise scale)
+            # This maintains privacy while keeping the model functional
+            weight_std = np.std(weight_array) if np.std(weight_array) > 0 else 1.0
+            adaptive_noise_scale = base_noise_scale * 0.001 * weight_std
+            
             # Generate Gaussian noise with the same shape as weights
-            noise = np.random.normal(0, noise_scale, weight_array.shape)
+            noise = np.random.normal(0, adaptive_noise_scale, weight_array.shape)
             
             # Add noise to weights
             noisy_weight = weight_array + noise
