@@ -6,7 +6,7 @@ This is a federated learning research project implementing three algorithms:
 - **FedAvg**: Classical federated averaging algorithm  
 - **SCOTCH**: Another federated learning approach
 
-The project is built with Python 3.11, TensorFlow 2.20.0, and Flask for the web interface.
+The project is built with Python 3.12, TensorFlow 2.20.0, and Flask 3.1.2 for the web interface.
 
 ## Usage
 The project runs on port 5000 with an enhanced web interface featuring:
@@ -32,11 +32,12 @@ Access the web interface at the main URL. Click buttons to run algorithms direct
 
 ## Development Notes  
 - **2025-09-30**: Fresh GitHub clone successfully configured for Replit environment
-- Python 3.11 environment with all dependencies installed and verified (TensorFlow 2.20.0, Flask 3.1.2, etc.)
+- Python 3.12 environment with all dependencies installed and verified (TensorFlow 2.20.0, Flask 3.1.2, NumPy 2.3.3, Pandas 2.3.3, scikit-learn 1.7.2)
 - Enhanced Flask app running successfully on port 5000 with 0.0.0.0 binding
 - Workflow configured with proper port waiting (5000) and webview output
 - Optimized for fast training iterations in development environment
 - Production deployment configured for VM target with correct run command
+- .gitignore created to properly exclude Python cache and temporary files
 
 ## Technical Fixes Applied
 - **Flask Debug Mode**: Fixed debug=False and use_reloader=False in fedavgserver.py and fedavgclient.py to prevent nohup conflicts
