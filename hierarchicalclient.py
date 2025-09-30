@@ -204,41 +204,50 @@ def start_next_round(data):
         validation_split=config.validation_split
     )
     
-    # Evaluate local client performance
-    x_test, y_test = mnistcommon.load_test_dataset()
-    local_results = model.evaluate(x_test, y_test, verbose=0)
-    local_loss = local_results[0]
-    local_accuracy = local_results[1]
-    
-    print(f"Client {config.client_index} Local Performance:")
-    print(f"  loss: {local_loss:.6f}")
-    print(f"  accuracy: {local_accuracy:.6f}")
-    
-    # Get updated model weights
-    model_weights = model.get_weights()
-    round_weight = model_weights
-    
-    # Apply differential privacy
-    private_weights = apply_differential_privacy(model_weights)
-    
-    # Create secret shares
-    weight_shares = create_secret_shares(private_weights)
-    
-    # Send shares to fog nodes
-    send_shares_to_fog_nodes(weight_shares)
-    
-    # Log privacy spending with UI-compatible format
-    epsilon_spent, delta_spent = dp_mechanism.compute_privacy_spent(training_round + 1)
-    print(f"[PRIVACY] Privacy spent so far: ε={epsilon_spent:.4f}, δ={delta_spent:.6f}")
-    print(f"Training Round: {training_round + 1}")  # For UI parsing
-    
-    global total_download_cost
-    print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}")
-    print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}")
-    
-    print(f"********************** Round {training_round} completed **********************")
-    training_round += 1
-    print("Waiting to receive response from leader fog node...")
+    try:
+        # Evaluate local client performance
+        x_test, y_test = mnistcommon.load_test_dataset()
+        local_results = model.evaluate(x_test, y_test, verbose=0)
+        local_loss = local_results[0]
+        local_accuracy = local_results[1]
+        
+        print(f"Client {config.client_index} Local Performance:", flush=True)
+        print(f"  loss: {local_loss:.6f}", flush=True)
+        print(f"  accuracy: {local_accuracy:.6f}", flush=True)
+        
+        # Get updated model weights
+        model_weights = model.get_weights()
+        round_weight = model_weights
+        
+        # Apply differential privacy
+        print(f"[DEBUG] Applying DP...", flush=True)
+        private_weights = apply_differential_privacy(model_weights)
+        
+        # Create secret shares
+        print(f"[DEBUG] Creating shares...", flush=True)
+        weight_shares = create_secret_shares(private_weights)
+        
+        # Send shares to fog nodes
+        print(f"[DEBUG] Sending shares...", flush=True)
+        send_shares_to_fog_nodes(weight_shares)
+        
+        # Log privacy spending with UI-compatible format
+        epsilon_spent, delta_spent = dp_mechanism.compute_privacy_spent(training_round + 1)
+        print(f"[PRIVACY] Privacy spent so far: ε={epsilon_spent:.4f}, δ={delta_spent:.6f}", flush=True)
+        print(f"Training Round: {training_round + 1}", flush=True)  # For UI parsing
+        
+        global total_download_cost
+        print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}", flush=True)
+        print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}", flush=True)
+        
+        print(f"********************** Round {training_round} completed **********************", flush=True)
+        training_round += 1
+        print("Waiting to receive response from leader fog node...", flush=True)
+    except Exception as e:
+        print(f"[ERROR] Exception in start_next_round: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @api.route('/recv', methods=['POST'])

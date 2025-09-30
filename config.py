@@ -1,9 +1,9 @@
 class Config:
-    number_of_clients = 5  # Number of federated learning clients - optimized for reliability
-    train_dataset_size = 6000  # Reduced dataset size for faster training
+    number_of_clients = 3  # Number of federated learning clients - optimized for Replit
+    train_dataset_size = 3600  # Reduced dataset size for faster training in Replit
     clients_dataset_size = [train_dataset_size/number_of_clients] * number_of_clients
     total_dataset_size = sum(clients_dataset_size)
-    num_servers = 3  # Number of servers (can be modified as needed)
+    num_servers = 2  # Number of servers (fog nodes) - optimized for Replit
     training_rounds = 3  # Multiple rounds for proper convergence
     epochs = 1
     batch_size = 16  # Larger batch size for faster training

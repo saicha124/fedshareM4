@@ -13,8 +13,8 @@ echo "🔐 Privacy Features:"
 echo "   • Differential Privacy (ε=1.0, δ=1e-5)"
 echo "   • Shamir Secret Sharing (threshold=2/3)"
 echo "🏗️  Architecture:"
-echo "   • Clients: 5"
-echo "   • Fog Nodes: 3" 
+echo "   • Clients: $(python3 -c 'from config import Config; print(Config.number_of_clients)')"
+echo "   • Fog Nodes: $(python3 -c 'from config import Config; print(Config.num_servers)')" 
 echo "   • Leader Fog: 1"
 echo "=============================================================================="
 
@@ -36,8 +36,10 @@ export TF_CPP_MIN_LOG_LEVEL=2
 export PYTHONPATH="/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:$PYTHONPATH"
 export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH"
 
-# Create logs directory if it doesn't exist
-LOG_DIR="logs/hierarchical-mnist-client-5-fog-3"
+# Create logs directory dynamically based on configuration
+N_CLIENTS=$(python3 -c "from config import Config; print(Config.number_of_clients)")
+N_FOGS=$(python3 -c "from config import Config; print(Config.num_servers)")
+LOG_DIR="logs/hierarchical-mnist-client-${N_CLIENTS}-fog-${N_FOGS}"
 mkdir -p "$LOG_DIR"
 
 echo "📁 Log directory: $LOG_DIR"
@@ -149,7 +151,7 @@ echo ""
 # Start fog nodes
 echo "2️⃣  STARTING FOG NODES"
 echo "----------------------------------------"
-for i in $(seq 0 2); do
+for i in $(seq 0 $((N_FOGS - 1))); do
     start_service "hierarchicalfognode.py" "$i" "Fog Node" "$LOG_DIR/fognode-$i.log"
     sleep 1
 done
@@ -158,7 +160,7 @@ echo "⏳ Waiting for fog nodes to initialize..."
 sleep 5
 
 # Check fog nodes
-for i in $(seq 0 2); do
+for i in $(seq 0 $((N_FOGS - 1))); do
     port=$((4500 + i))
     if ! wait_for_service "127.0.0.1" "$port" "Fog Node $i"; then
         echo "❌ Failed to start Fog Node $i"
@@ -171,7 +173,7 @@ echo ""
 # Start clients
 echo "3️⃣  STARTING HIERARCHICAL FL CLIENTS"
 echo "----------------------------------------"
-for i in $(seq 0 4); do
+for i in $(seq 0 $((N_CLIENTS - 1))); do
     start_service "hierarchicalclient.py" "$i" "Hierarchical Client" "$LOG_DIR/hierarchicalclient-$i.log"
     sleep 1
 done
@@ -180,7 +182,7 @@ echo "⏳ Waiting for clients to initialize..."
 sleep 5
 
 # Check clients
-for i in $(seq 0 4); do
+for i in $(seq 0 $((N_CLIENTS - 1))); do
     port=$((9500 + i))
     if ! wait_for_service "127.0.0.1" "$port" "Client $i"; then
         echo "❌ Failed to start Client $i"
@@ -194,7 +196,7 @@ echo "----------------------------------------"
 
 # Start training by sending start command to all clients
 echo "📡 Initiating training across all clients..."
-for i in $(seq 0 4); do
+for i in $(seq 0 $((N_CLIENTS - 1))); do
     port=$((9500 + i))
     echo "   Starting client $i..."
     curl -s "http://127.0.0.1:$port/start" > /dev/null 2>&1 &
@@ -222,6 +224,7 @@ python3 -c "
 import time
 import requests
 import json
+from config import Config
 
 def check_progress():
     try:
@@ -244,7 +247,7 @@ def check_progress():
         return -1
 
 print('⏳ Monitoring training progress...')
-max_rounds = 3  # From config
+max_rounds = Config.training_rounds
 last_round = 0
 
 while True:

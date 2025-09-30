@@ -119,24 +119,26 @@ def recv_thread(client_shares, data, remote_addr):
     global total_download_cost
     total_download_cost += len(data)
     
-    print(f"[DOWNLOAD] Share from {remote_addr} received. size: {len(data)}")
+    print(f"[DOWNLOAD] Share from {remote_addr} received. size: {len(data)}", flush=True)
     
     try:
         # Deserialize client shares
         share = pickle.loads(data)
         client_shares.append(share)
         
-        print(f"[SECRET] Share from {remote_addr} processed successfully.")
-        print(f"[PROGRESS] Received {len(client_shares)}/{config.number_of_clients} shares")
+        print(f"[SECRET] Share from {remote_addr} processed successfully.", flush=True)
+        print(f"[PROGRESS] Received {len(client_shares)}/{config.number_of_clients} shares", flush=True)
         
         # Check if we have enough shares to proceed
         if len(client_shares) < config.number_of_clients:
             return
         
         # Aggregate shares from all clients
+        print(f"[AGGREGATION] Starting aggregation of {len(client_shares)} shares...", flush=True)
         aggregated_shares = aggregate_shares(client_shares)
         
         # Send aggregated result to leader fog node
+        print(f"[UPLOAD] Sending aggregated shares to leader fog...", flush=True)
         send_to_leader_fog(aggregated_shares)
         
         # Clear shares for next round
@@ -145,13 +147,15 @@ def recv_thread(client_shares, data, remote_addr):
         global training_round
         training_round += 1
         
-        print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}")
-        print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}")
+        print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}", flush=True)
+        print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}", flush=True)
         
-        print(f"********************** [FOG] Round {training_round} completed **********************")
+        print(f"********************** [FOG] Round {training_round} completed **********************", flush=True)
         
     except Exception as e:
-        print(f"[ERROR] Failed to process share from {remote_addr}: {e}")
+        print(f"[ERROR] Failed to process share from {remote_addr}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
 
 
 @api.route('/', methods=['GET'])
