@@ -38,10 +38,6 @@ externalPort = 80
 localPort = 33537
 externalPort = 3000
 
-[[ports]]
-localPort = 39853
-externalPort = 3001
-
 [deployment]
 deploymentTarget = "vm"
 run = ["python", "-u", "enhanced_app.py"]
