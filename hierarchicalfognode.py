@@ -30,83 +30,63 @@ sss_mechanism = ShamirSecretSharing(
 
 def aggregate_shares(shares_collection):
     """
-    Aggregate secret shares from multiple clients using integer-weighted sums
+    Simple averaging of shares from clients (no weighted aggregation on shares)
     
-    CRITICAL: Shamir shares MUST remain integers in the finite field.
-    We compute integer-weighted sums (using dataset sizes as weights) and send
-    the total weight to the leader, which divides after reconstruction.
+    CRITICAL: Shamir shares in this implementation are stored as floats.
+    We use simple averaging (not weighted) to preserve numerical stability.
+    Leader will handle weighted aggregation after reconstruction.
     
     Args:
         shares_collection: List of client shares
         
     Returns:
-        Tuple of (aggregated_shares, total_weight) to send to leader fog node
+        Averaged shares to send to leader fog node
     """
-    print(f"[AGGREGATION] Aggregating shares from {len(shares_collection)} clients")
+    print(f"[AGGREGATION] Averaging shares from {len(shares_collection)} clients using SIMPLE MEAN")
     
-    # Use dataset sizes as integer weights (NO floating point operations on shares!)
-    total_participating_clients = len(shares_collection)
-    participating_dataset_sizes = config.clients_dataset_size[:total_participating_clients]
-    total_weight = int(sum(participating_dataset_sizes))
-    
-    print(f"[AGGREGATION] Fog Node {config.fog_index} Aggregation Details:")
-    print(f"  Participating clients: {total_participating_clients}")
-    print(f"  Dataset sizes (integer weights): {participating_dataset_sizes}")
-    print(f"  Total weight: {total_weight}")
-    
-    # Perform INTEGER-weighted sum of shares (preserves finite field properties)
-    aggregated_shares = {}
+    num_clients = len(shares_collection)
     num_layers = len(shares_collection[0])
     
+    # Simple averaging: sum all shares and divide by number of clients
+    averaged_shares = {}
+    
     for layer_index in range(num_layers):
-        # Initialize sum with zeros in int64 to avoid overflow
         layer_sum = None
         
-        for client_index in range(total_participating_clients):
-            client_share = shares_collection[client_index][layer_index]
-            # Integer weight (dataset size)
-            weight = int(participating_dataset_sizes[client_index])
-            
-            # Multiply share by integer weight (stays in finite field)
-            weighted_share = client_share * weight
+        for client_share_list in shares_collection:
+            client_share = client_share_list[layer_index]
             
             if layer_sum is None:
-                layer_sum = weighted_share.astype(np.int64)
+                layer_sum = client_share.astype(np.float64)
             else:
-                layer_sum = layer_sum + weighted_share.astype(np.int64)
+                layer_sum = layer_sum + client_share.astype(np.float64)
         
-        aggregated_shares[layer_index] = layer_sum
+        # Simple average: divide by number of clients
+        averaged_share = (layer_sum / num_clients).astype(np.float32)
+        averaged_shares[layer_index] = averaged_share
     
-    # Convert back to list format
-    aggregated_list = [aggregated_shares[i] for i in range(len(aggregated_shares))]
+    # Convert to list format
+    aggregated_list = [averaged_shares[i] for i in range(len(averaged_shares))]
     
-    print(f"[AGGREGATION] Successfully aggregated {len(aggregated_list)} layers using integer weights")
-    print(f"[AGGREGATION] Sending total_weight={total_weight} to leader for post-reconstruction division")
+    print(f"[AGGREGATION] Successfully averaged {len(aggregated_list)} layers (simple mean)")
+    print(f"[INFO] Weighted aggregation will be done at leader level after reconstruction")
     
-    return aggregated_list, total_weight
+    return aggregated_list
 
 
-def send_to_leader_fog(aggregated_shares, total_weight):
+def send_to_leader_fog(aggregated_shares):
     """
-    Send aggregated shares and total weight to leader fog node
+    Send averaged shares to leader fog node
     
     Args:
-        aggregated_shares: Aggregated weight shares (integer-weighted sum)
-        total_weight: Total dataset size for post-reconstruction division
+        aggregated_shares: Averaged shares from clients
     """
     global total_upload_cost
     
     try:
-        # Package both shares and weight together
-        payload = {
-            'shares': aggregated_shares,
-            'total_weight': total_weight,
-            'fog_id': config.fog_index
-        }
-        
-        # Serialize payload
-        serialized_payload = pickle.dumps(payload)
-        total_upload_cost += len(serialized_payload)
+        # Serialize shares
+        serialized_shares = pickle.dumps(aggregated_shares)
+        total_upload_cost += len(serialized_shares)
         
         # Send to leader fog node
         url = f'http://{config.server_address}:{config.leader_fog_port}/recv'
@@ -114,10 +94,9 @@ def send_to_leader_fog(aggregated_shares, total_weight):
         new_source = source.SourceAddressAdapter(config.server_address)
         s.mount('http://', new_source)
         
-        response = s.post(url, serialized_payload)
+        response = s.post(url, serialized_shares)
         
-        print(f"[UPLOAD] Sent {len(serialized_payload)} bytes to leader fog node: {response.json()}")
-        print(f"[UPLOAD] Payload includes shares + total_weight={total_weight}")
+        print(f"[UPLOAD] Sent {len(serialized_shares)} bytes to leader fog node: {response.json()}")
         
     except Exception as e:
         print(f"[ERROR] Failed to send to leader fog node: {e}")
@@ -152,11 +131,11 @@ def recv_thread(client_shares, data, remote_addr):
         
         # Aggregate shares from all clients
         print(f"[AGGREGATION] Starting aggregation of {len(client_shares)} shares...", flush=True)
-        aggregated_shares, total_weight = aggregate_shares(client_shares)
+        aggregated_shares = aggregate_shares(client_shares)
         
         # Send aggregated result to leader fog node
         print(f"[UPLOAD] Sending aggregated shares to leader fog...", flush=True)
-        send_to_leader_fog(aggregated_shares, total_weight)
+        send_to_leader_fog(aggregated_shares)
         
         # Clear shares for next round
         client_shares.clear()

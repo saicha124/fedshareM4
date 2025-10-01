@@ -22,7 +22,6 @@ total_upload_cost = 0
 total_download_cost = 0
 
 fog_shares = []
-fog_weights = []  # Track total weights from each fog node
 
 # Initialize secret sharing mechanism
 sss_mechanism = ShamirSecretSharing(
@@ -31,29 +30,17 @@ sss_mechanism = ShamirSecretSharing(
 )
 
 
-def reconstruct_and_aggregate_global_model(fog_shares_collection, fog_weights_collection):
+def reconstruct_and_aggregate_global_model(fog_shares_collection):
     """
-    Reconstruct global model from fog node shares using Shamir's Secret Sharing,
-    then divide by total weight for proper FedAvg
+    Reconstruct global model from averaged fog node shares using Shamir's Secret Sharing
     
     Args:
-        fog_shares_collection: List of aggregated shares from fog nodes (integer-weighted sums)
-        fog_weights_collection: List of total weights from each fog node
+        fog_shares_collection: List of averaged shares from fog nodes
         
     Returns:
-        Final global model weights properly reconstructed and averaged
+        Final global model weights reconstructed from averaged shares
     """
-    print(f"[RECONSTRUCTION] Reconstructing global model from {len(fog_shares_collection)} fog nodes using Shamir's Secret Sharing")
-    
-    # Calculate combined total weight for final division
-    combined_total_weight = sum(fog_weights_collection)
-    print(f"[FEDAVG] Combined total weight: {combined_total_weight}")
-    print(f"[FEDAVG] Individual fog weights: {fog_weights_collection}")
-    
-    # Safety check: prevent division by zero
-    if combined_total_weight == 0:
-        print(f"[ERROR] Combined total weight is zero! Cannot perform FedAvg division.")
-        raise ValueError("Combined total weight is zero - no valid data for aggregation")
+    print(f"[RECONSTRUCTION] Reconstructing global model from {len(fog_shares_collection)} fog nodes using Shamir's Secret Sharing", flush=True)
     
     # Check if we have enough shares for reconstruction
     if len(fog_shares_collection) < config.secret_threshold:
@@ -67,31 +54,26 @@ def reconstruct_and_aggregate_global_model(fog_shares_collection, fog_weights_co
     
     # Reconstruct the global model using Shamir's Secret Sharing
     try:
-        reconstructed_weights = sss_mechanism.reconstruct_model_weights(weight_shares)
-        print(f"[RECONSTRUCTION] Successfully reconstructed {len(reconstructed_weights)} layers using Shamir interpolation")
+        global_weights = sss_mechanism.reconstruct_model_weights(weight_shares)
+        print(f"[RECONSTRUCTION] Successfully reconstructed {len(global_weights)} layers using Shamir interpolation", flush=True)
         
         # Log reconstruction details
-        print(f"[SHAMIR] Used {len(weight_shares)} shares with threshold {config.secret_threshold}")
-        print(f"[SHAMIR] Share IDs: {list(weight_shares.keys())}")
+        print(f"[SHAMIR] Used {len(weight_shares)} shares with threshold {config.secret_threshold}", flush=True)
+        print(f"[SHAMIR] Share IDs: {list(weight_shares.keys())}", flush=True)
         
-        # CRITICAL FIX: Divide reconstructed weights by combined total weight for proper FedAvg
-        global_weights = []
-        for layer_idx, layer_weight in enumerate(reconstructed_weights):
-            averaged_layer = layer_weight / combined_total_weight
-            global_weights.append(averaged_layer)
-            
-            # Sanity check for numerical stability
-            weight_norm = np.linalg.norm(averaged_layer)
+        # Sanity check for numerical stability
+        for layer_idx, layer_weight in enumerate(global_weights):
+            weight_norm = np.linalg.norm(layer_weight)
             if weight_norm > 1e6:
-                print(f"[WARNING] Layer {layer_idx} has abnormally high norm: {weight_norm}")
+                print(f"[WARNING] Layer {layer_idx} has abnormally high norm: {weight_norm}", flush=True)
         
-        print(f"[FEDAVG] Applied division by total_weight={combined_total_weight} to complete FedAvg")
+        print(f"[AGGREGATION] Fog nodes performed simple averaging; reconstruction gives final averaged model", flush=True)
         
         return global_weights
         
     except Exception as e:
-        print(f"[ERROR] Shamir reconstruction failed: {e}")
-        print(f"[FALLBACK] Using weighted averaging as backup (WARNING: This is not secure!)")
+        print(f"[ERROR] Shamir reconstruction failed: {e}", flush=True)
+        print(f"[FALLBACK] Using simple averaging as backup (WARNING: This is not secure!)", flush=True)
         
         # Fallback to averaging (for debugging only)
         num_layers = len(fog_shares_collection[0])
@@ -134,67 +116,57 @@ def broadcast_global_model(global_weights):
         print(f"[ERROR] Failed to broadcast global model: {e}")
 
 
-def recv_thread(fog_shares, fog_weights, data, remote_addr):
+def recv_thread(fog_shares, data, remote_addr):
     """
-    Process received shares from fog nodes
+    Process received averaged shares from fog nodes
     
     Args:
         fog_shares: Collection of fog node shares
-        fog_weights: Collection of fog node weights
-        data: Serialized payload data
+        data: Serialized share data
         remote_addr: Fog node address
     """
     global total_download_cost
     total_download_cost += len(data)
     
-    print(f"[DOWNLOAD] Aggregated shares from fog node {remote_addr} received. size: {len(data)}")
+    print(f"[DOWNLOAD] Averaged shares from fog node {remote_addr} received. size: {len(data)}", flush=True)
     
     try:
-        # Deserialize fog node payload (contains both shares and total_weight)
-        payload = pickle.loads(data)
-        
-        # Extract shares and weight from payload
-        shares = payload['shares']
-        total_weight = payload['total_weight']
-        fog_id = payload.get('fog_id', 'unknown')
-        
+        # Deserialize fog node shares
+        shares = pickle.loads(data)
         fog_shares.append(shares)
-        fog_weights.append(total_weight)
         
-        print(f"[AGGREGATION] Shares from fog node {fog_id} ({remote_addr}) processed successfully.")
-        print(f"[AGGREGATION] Fog node {fog_id} total_weight: {total_weight}")
-        print(f"[PROGRESS] Received shares from {len(fog_shares)}/{config.num_servers} fog nodes")
+        print(f"[AGGREGATION] Shares from fog node {remote_addr} processed successfully.", flush=True)
+        print(f"[PROGRESS] Received shares from {len(fog_shares)}/{config.num_servers} fog nodes", flush=True)
         
         # Check if we have received from all fog nodes
         if len(fog_shares) < config.num_servers:
             return
         
-        # Reconstruct and aggregate final global model using integer weights
-        global_weights = reconstruct_and_aggregate_global_model(fog_shares, fog_weights)
+        # Reconstruct and aggregate final global model
+        global_weights = reconstruct_and_aggregate_global_model(fog_shares)
         
         # Broadcast global model to all clients
         broadcast_global_model(global_weights)
         
-        # Clear fog shares and weights for next round
+        # Clear fog shares for next round
         fog_shares.clear()
-        fog_weights.clear()
         
         global training_round
         training_round += 1
         
-        print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}")
-        print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}")
+        print(f"[DOWNLOAD] Total download cost so far: {total_download_cost}", flush=True)
+        print(f"[UPLOAD] Total upload cost so far: {total_upload_cost}", flush=True)
         
-        print("=" * 80)
-        print(f"🎯 GLOBAL AGGREGATION ROUND {training_round} COMPLETED")
-        print("=" * 80)
-        print(f"📊 Fog nodes processed: {config.num_servers}")
-        print(f"👥 Clients served: {config.number_of_clients}")
-        print(f"🔒 Privacy-preserving: Differential Privacy + Secret Sharing")
-        print("=" * 80)
+        print("=" * 80, flush=True)
+        print(f"🎯 GLOBAL AGGREGATION ROUND {training_round} COMPLETED", flush=True)
+        print("=" * 80, flush=True)
+        print(f"📊 Fog nodes processed: {config.num_servers}", flush=True)
+        print(f"👥 Clients served: {config.number_of_clients}", flush=True)
+        print(f"🔒 Privacy-preserving: Differential Privacy + Secret Sharing", flush=True)
+        print("=" * 80, flush=True)
         
     except Exception as e:
-        print(f"[ERROR] Failed to process shares from fog node {remote_addr}: {e}")
+        print(f"[ERROR] Failed to process shares from fog node {remote_addr}: {e}", flush=True)
         import traceback
         traceback.print_exc()
 
@@ -216,10 +188,10 @@ def health_check():
 
 @api.route('/recv', methods=['POST'])
 def recv():
-    """Receive aggregated shares from fog nodes"""
+    """Receive averaged shares from fog nodes"""
     my_thread = threading.Thread(
         target=recv_thread, 
-        args=(fog_shares, fog_weights, request.data, request.remote_addr)
+        args=(fog_shares, request.data, request.remote_addr)
     )
     my_thread.start()
     return {"response": "ok"}
