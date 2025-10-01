@@ -51,12 +51,13 @@ Access the web interface at the main URL. Click buttons to run algorithms direct
 - **Hierarchical Script Python Path**: Fixed outdated Python path in start-hierarchical.sh (changed from /home/runner/workspace/.pythonlibs/bin/python3 to python3) - resolved "Waiting to start" issue (2025-09-30)
 - **MNIST Dataset Cache**: Cleared corrupted MNIST dataset cache that was causing download hash mismatch errors, allowing algorithms to load data properly (2025-09-30)
 
-## Current Status (2025-09-30)
+## Current Status (2025-10-01)
 - ✅ **Fresh GitHub clone successfully imported and configured for Replit**
 - ✅ Web interface fully functional with real-time progress tracking
-- ✅ All dependencies installed and verified working (TensorFlow 2.20.0, Flask 3.1.2, NumPy, scikit-learn, etc.)
+- ✅ All dependencies installed and verified working (TensorFlow 2.20.0, Flask 3.1.2, NumPy 2.3.3, Keras 3.11.3, scikit-learn, etc.)
 - ✅ Frontend properly bound to 0.0.0.0:5000 for Replit proxy compatibility  
 - ✅ Workflow properly configured: webview output, port 5000 waiting
 - ✅ Deployment configured for VM target (stateful app with always-on requirement)
-- ✅ All three algorithms (FedShare, FedAvg, SCOTCH) ready to run
+- ✅ Shell scripts have proper execute permissions
+- ✅ All four algorithms (FedShare, FedAvg, SCOTCH, Hierarchical) ready to run
 - ✅ **Import process completed successfully - ready for use**
