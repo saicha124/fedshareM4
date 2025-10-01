@@ -22,6 +22,7 @@ total_upload_cost = 0
 total_download_cost = 0
 
 fog_shares = []
+fog_weights = []  # Track total weights from each fog node
 
 # Initialize secret sharing mechanism
 sss_mechanism = ShamirSecretSharing(
@@ -30,17 +31,29 @@ sss_mechanism = ShamirSecretSharing(
 )
 
 
-def reconstruct_and_aggregate_global_model(fog_shares_collection):
+def reconstruct_and_aggregate_global_model(fog_shares_collection, fog_weights_collection):
     """
-    Reconstruct global model from fog node shares using Shamir's Secret Sharing
+    Reconstruct global model from fog node shares using Shamir's Secret Sharing,
+    then divide by total weight for proper FedAvg
     
     Args:
-        fog_shares_collection: List of aggregated shares from fog nodes
+        fog_shares_collection: List of aggregated shares from fog nodes (integer-weighted sums)
+        fog_weights_collection: List of total weights from each fog node
         
     Returns:
-        Final global model weights properly reconstructed from shares
+        Final global model weights properly reconstructed and averaged
     """
     print(f"[RECONSTRUCTION] Reconstructing global model from {len(fog_shares_collection)} fog nodes using Shamir's Secret Sharing")
+    
+    # Calculate combined total weight for final division
+    combined_total_weight = sum(fog_weights_collection)
+    print(f"[FEDAVG] Combined total weight: {combined_total_weight}")
+    print(f"[FEDAVG] Individual fog weights: {fog_weights_collection}")
+    
+    # Safety check: prevent division by zero
+    if combined_total_weight == 0:
+        print(f"[ERROR] Combined total weight is zero! Cannot perform FedAvg division.")
+        raise ValueError("Combined total weight is zero - no valid data for aggregation")
     
     # Check if we have enough shares for reconstruction
     if len(fog_shares_collection) < config.secret_threshold:
@@ -54,12 +67,25 @@ def reconstruct_and_aggregate_global_model(fog_shares_collection):
     
     # Reconstruct the global model using Shamir's Secret Sharing
     try:
-        global_weights = sss_mechanism.reconstruct_model_weights(weight_shares)
-        print(f"[RECONSTRUCTION] Successfully reconstructed {len(global_weights)} layers using Shamir interpolation")
+        reconstructed_weights = sss_mechanism.reconstruct_model_weights(weight_shares)
+        print(f"[RECONSTRUCTION] Successfully reconstructed {len(reconstructed_weights)} layers using Shamir interpolation")
         
         # Log reconstruction details
         print(f"[SHAMIR] Used {len(weight_shares)} shares with threshold {config.secret_threshold}")
         print(f"[SHAMIR] Share IDs: {list(weight_shares.keys())}")
+        
+        # CRITICAL FIX: Divide reconstructed weights by combined total weight for proper FedAvg
+        global_weights = []
+        for layer_idx, layer_weight in enumerate(reconstructed_weights):
+            averaged_layer = layer_weight / combined_total_weight
+            global_weights.append(averaged_layer)
+            
+            # Sanity check for numerical stability
+            weight_norm = np.linalg.norm(averaged_layer)
+            if weight_norm > 1e6:
+                print(f"[WARNING] Layer {layer_idx} has abnormally high norm: {weight_norm}")
+        
+        print(f"[FEDAVG] Applied division by total_weight={combined_total_weight} to complete FedAvg")
         
         return global_weights
         
@@ -108,13 +134,14 @@ def broadcast_global_model(global_weights):
         print(f"[ERROR] Failed to broadcast global model: {e}")
 
 
-def recv_thread(fog_shares, data, remote_addr):
+def recv_thread(fog_shares, fog_weights, data, remote_addr):
     """
     Process received shares from fog nodes
     
     Args:
         fog_shares: Collection of fog node shares
-        data: Serialized share data
+        fog_weights: Collection of fog node weights
+        data: Serialized payload data
         remote_addr: Fog node address
     """
     global total_download_cost
@@ -123,25 +150,34 @@ def recv_thread(fog_shares, data, remote_addr):
     print(f"[DOWNLOAD] Aggregated shares from fog node {remote_addr} received. size: {len(data)}")
     
     try:
-        # Deserialize fog node shares
-        shares = pickle.loads(data)
-        fog_shares.append(shares)
+        # Deserialize fog node payload (contains both shares and total_weight)
+        payload = pickle.loads(data)
         
-        print(f"[AGGREGATION] Shares from fog node {remote_addr} processed successfully.")
+        # Extract shares and weight from payload
+        shares = payload['shares']
+        total_weight = payload['total_weight']
+        fog_id = payload.get('fog_id', 'unknown')
+        
+        fog_shares.append(shares)
+        fog_weights.append(total_weight)
+        
+        print(f"[AGGREGATION] Shares from fog node {fog_id} ({remote_addr}) processed successfully.")
+        print(f"[AGGREGATION] Fog node {fog_id} total_weight: {total_weight}")
         print(f"[PROGRESS] Received shares from {len(fog_shares)}/{config.num_servers} fog nodes")
         
         # Check if we have received from all fog nodes
         if len(fog_shares) < config.num_servers:
             return
         
-        # Reconstruct and aggregate final global model
-        global_weights = reconstruct_and_aggregate_global_model(fog_shares)
+        # Reconstruct and aggregate final global model using integer weights
+        global_weights = reconstruct_and_aggregate_global_model(fog_shares, fog_weights)
         
         # Broadcast global model to all clients
         broadcast_global_model(global_weights)
         
-        # Clear fog shares for next round
+        # Clear fog shares and weights for next round
         fog_shares.clear()
+        fog_weights.clear()
         
         global training_round
         training_round += 1
@@ -159,6 +195,8 @@ def recv_thread(fog_shares, data, remote_addr):
         
     except Exception as e:
         print(f"[ERROR] Failed to process shares from fog node {remote_addr}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @api.route('/', methods=['GET'])
@@ -181,7 +219,7 @@ def recv():
     """Receive aggregated shares from fog nodes"""
     my_thread = threading.Thread(
         target=recv_thread, 
-        args=(fog_shares, request.data, request.remote_addr)
+        args=(fog_shares, fog_weights, request.data, request.remote_addr)
     )
     my_thread.start()
     return {"response": "ok"}
